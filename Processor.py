@@ -31,11 +31,13 @@ def blue_screen_mask(image: PIL.Image):
 def create_mask(differences_spotted, only):
     potential = blue_screen_mask(only)
     mask = np.logical_and(potential, differences_spotted)
-    return np.sum(np.sum(mask)), Image.fromarray(mask.astype(np.uint8) * 255, mode='L')
+    # suum = np.sum(np.sum(mask))
+    suum = None
+    return suum, Image.fromarray(mask.astype(np.uint8) * 255, mode='L')
 
 
 if __name__ == '__main__':
-    for ddir in ['masks_loot', 'masks_enemies', 'fullres', 'downscaled']:
+    for ddir in ['masks_loot', 'masks_enemies', 'screenshots']:
         os.makedirs(f'data/{ddir}', exist_ok=True)
     names_all = os.listdir('data/new')
     name_stubs = set()
@@ -47,9 +49,9 @@ if __name__ == '__main__':
         if os.path.exists(f'data/masks_enemies/{n}.png'):
             continue
 
-        shutil.copy(f'data/new/{n}_{VERBATIM}.png', f'data/fullres/{n}.png')
-        with Image.open(f'data/new/{n}_{VERBATIM}.png') as im:
-            downscale(im).save(f'data/downscaled/{n}.png')
+        shutil.copy(f'data/new/{n}_{VERBATIM}.png', f'data/screenshots/{n}.png')
+        # with Image.open(f'data/new/{n}_{VERBATIM}.png') as im:
+        #     downscale(im).save(f'data/downscaled/{n}.png')
 
         with Image.open(f'data/new/{n}_{SIMPLIFIED}.png') as simplified:
             with Image.open(f'data/new/{n}_{LOOT_ONLY}.png') as loot_only:
