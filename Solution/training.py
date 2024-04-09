@@ -54,19 +54,20 @@ def visualize(mask_truth, mask_predicted):
 def pred_to_masks(masks):
     en_masks = masks[0]
     lt_masks = masks[1]
-    return en_masks > 0.5, lt_masks > 0.5
+    return en_masks > 0.3, lt_masks > 0.3
 
 
 def score(en_truth, en_prediction, lt_truth, lt_prediction):
     def compute_iou(prediction, target):
         intersection = torch.logical_and(target, prediction).sum(dim=(-1, -2)).float()
         union = torch.logical_or(target, prediction).sum(dim=(-1, -2)).float()
+        union = torch.where(union < 10, torch.tensor(0), union)
         iou = (intersection + 1e-6) / (union + 1e-6)  # Adding epsilon to avoid division by zero
         return iou
     en_importance = (20 - 1) * torch.any(en_truth, dim=(-1, -2)) + 1
     lt_importance = (8 - 1) * torch.any(lt_truth, dim=(-1, -2)) + 1
-    en_iou = compute_iou(en_truth, en_prediction)
-    lt_iou = compute_iou(lt_truth, lt_prediction)
+    en_iou = compute_iou(en_prediction, en_truth > 0.5)
+    lt_iou = compute_iou(lt_prediction, lt_truth > 0.5)
     return sum(en_importance * en_iou) + sum(lt_importance * lt_iou)
 
 
@@ -87,7 +88,7 @@ def eval(model, val_loader):
 
 if __name__ == '__main__':
     batch_size = 8
-    num_epochs = 1
+    num_epochs = 5
 
     from codename_quickpidgeon import QuickPidgeon as SelectedModel
     model = SelectedModel().to(device)
@@ -107,7 +108,7 @@ if __name__ == '__main__':
         for batch in train_loader:
             if b % (len(train_loader) // 20) == 0:
                 eval(model, val_loader)
-            print(f'Batch {b} / {len(train_loader)}')
+            print(f'Epoch {t}/{num_epochs}, batch {b} / {len(train_loader)}')
             b += 1
 
             names = batch[0]

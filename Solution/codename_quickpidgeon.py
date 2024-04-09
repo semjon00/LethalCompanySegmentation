@@ -1,51 +1,61 @@
-# UNet stolen from the segmentation practice session
+# Baby bootleg UNet
 
 import einops
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 from dataset import IMAGE_WIDTH, IMAGE_HEIGHT
 
 
 class QuickPidgeon(nn.Module):
-    def __init__(self, num_kernels=32, num_channels=3, num_classes=2, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT):
+    def __init__(self):
         super(QuickPidgeon, self).__init__()
+        num_classes = 2
+        num_channels = 3
 
-        self.img_width = img_width
-        self.img_height = img_height
-        self.num_kernels = num_kernels
-        self.num_classes = num_classes
+        def spawn_conv(n_from, n_to):
+            return nn.Sequential(
+                nn.Conv2d(n_from, n_to, kernel_size=3, padding='same'),
+                nn.GELU(),
+                nn.Conv2d(n_to, n_to, kernel_size=3, padding='same'),
+                nn.GELU(),
+            )
 
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(num_channels, num_kernels, kernel_size=3, padding='same'),
-            nn.ReLU(),
-        )
-        self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(num_kernels, 2 * num_kernels, kernel_size=3, padding='same'),
-            nn.ReLU(),
-        )
-        self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        path_downward = [num_channels, 16, 32, 64, 128, 256]
+        path_upward = [0, 128, 64, 32, 16, num_classes]
 
-        self.upsample1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        self.conv_up1 = nn.Conv2d(2 * num_kernels, num_kernels, kernel_size=3, padding=1)
-        self.upsample2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        self.conv_up2 = nn.Conv2d(3 * num_kernels, num_kernels, kernel_size=3, padding=1)
+        self.conv_down = nn.Sequential()
+        for i in range(len(path_downward) - 1):
+            self.conv_down.append(spawn_conv(path_downward[i], path_downward[i + 1]))
 
-        self.classifier = nn.Conv2d(2 * num_kernels, num_classes, kernel_size=1)
-        self.Sigmoid = nn.Sigmoid()
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+
+        self.conv_up = nn.Sequential()
+        for i in range(len(path_upward) - 1):
+            extra = path_downward[0 - 1 - i]
+            self.conv_up.append(spawn_conv(extra + path_upward[i], path_upward[i + 1]))
+
+        self.classifier = nn.Conv2d(path_upward[-1], num_classes, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        conv1_out = self.conv1(x)
-        maxpool1_out = self.maxpool1(conv1_out)
-        conv2_out = self.conv2(maxpool1_out)
-        maxpool2_out = self.maxpool2(conv2_out)
+        x = F.pad(x, (0, 20, 0, 24, 0, 0, 0, 0))
+        residual = []
 
-        upconv1_out = self.upsample1(maxpool2_out)  # Upsample
-        upconv1_out = self.conv_up1(upconv1_out)  # Then convolve
-        upconv2_out = self.upsample2(torch.cat((upconv1_out, conv2_out), dim=1))  # Upsample
-        upconv2_out = self.conv_up2(upconv2_out)
+        for i in range(len(self.conv_down)):
+            x = self.conv_down[i](x)
+            residual += [x]
+            x = self.maxpool(x)
 
-        x = self.Sigmoid(self.classifier(torch.cat((upconv2_out, conv1_out), dim=1)))
+        x = residual[-1].new_empty([residual[-1].shape[i] if i != 1 else 0 for i in range(len(residual[-1].shape))])
+        for i in range(len(self.conv_up)):
+            x = self.conv_up[i](torch.cat((residual[0 - 1 - i], x), dim=1))
+            if i != len(self.conv_up) - 1:
+                x = self.upsample(x)
+
+        x = self.sigmoid(self.classifier(x))
         x = einops.rearrange(x, 'b c h w -> c b h w')
+        x = x[:, :, :-24, :-20]
         return x
