@@ -58,8 +58,8 @@ def visualize(mask_truth, mask_predicted):
 
 
 def pred_to_masks(seg, det):
-    en_seg, lt_seg = seg[0]
-    en_det, lt_det = det[0]
+    en_seg, lt_seg = seg
+    en_det, lt_det = det
     en_seg[en_det > 0.5] = 0
     lt_seg[lt_det > 0.5] = 0
     return en_seg > 0.45, lt_seg > 0.45
