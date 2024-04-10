@@ -8,9 +8,9 @@ import torch.nn.functional as F
 from dataset import IMAGE_WIDTH, IMAGE_HEIGHT
 
 
-class QuickPidgeon(nn.Module):
+class QuickPigeon(nn.Module):
     def __init__(self):
-        super(QuickPidgeon, self).__init__()
+        super(QuickPigeon, self).__init__()
         num_classes = 2
         num_channels = 3
 
