@@ -37,6 +37,14 @@ class QuickPidgeon(nn.Module):
             extra = path_downward[0 - 1 - i]
             self.conv_up.append(spawn_conv(extra + path_upward[i], path_upward[i + 1]))
 
+        self.enabling_classifier = nn.Sequential(
+            nn.Linear(17 * 27 * 8, 64),
+            nn.GELU(),
+            nn.Linear(64, 64),
+            nn.GELU(),
+            nn.Linear(64, 2),
+            nn.Sigmoid(),
+        )
         self.classifier = nn.Conv2d(path_upward[-1], num_classes, kernel_size=1)
         self.sigmoid = nn.Sigmoid()
 
@@ -49,6 +57,9 @@ class QuickPidgeon(nn.Module):
             residual += [x]
             x = self.maxpool(x)
 
+        enabling = self.enabling_classifier(einops.rearrange(x[..., :8, :, :], 'b c h w -> b (c h w)'))
+        enabling = einops.rearrange(enabling, 'b c -> c b')
+
         x = residual[-1].new_empty([residual[-1].shape[i] if i != 1 else 0 for i in range(len(residual[-1].shape))])
         for i in range(len(self.conv_up)):
             x = self.conv_up[i](torch.cat((residual[0 - 1 - i], x), dim=1))
@@ -58,4 +69,4 @@ class QuickPidgeon(nn.Module):
         x = self.sigmoid(self.classifier(x))
         x = einops.rearrange(x, 'b c h w -> c b h w')
         x = x[:, :, :-24, :-20]
-        return x
+        return x, enabling

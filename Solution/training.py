@@ -11,6 +11,10 @@ print("Using {} device".format(device))
 bce_loss = nn.BCELoss()
 
 
+def torch_2d_any(x):
+    return torch.any(torch.any(x, dim=-1), dim=-1)
+
+
 def describe(model, shape):
     try:
         import torchinfo
@@ -19,12 +23,12 @@ def describe(model, shape):
         pass
 
 
-def loss_function(en_truth, lt_truth, prediction):
-    def half_loss_function(truth, prediction):
-        return bce_loss(prediction, truth)
-    en_prediction, lt_prediction = prediction
-    lt_k = 0.5
-    return (1 - lt_k) * half_loss_function(en_truth, en_prediction) + lt_k * half_loss_function(lt_truth, lt_prediction)
+def loss_function(en_truth, lt_truth, seg, det):
+    def half_loss_function(truth, prediction, detection):
+        return bce_loss(prediction, truth) + bce_loss(detection, torch_2d_any(truth).float())
+    en_seg, lt_seg = seg
+    en_det, lt_det = det
+    return half_loss_function(en_truth, en_seg, en_det) + half_loss_function(lt_truth, lt_seg, lt_det)
 
 
 # def predict(model, test_loader):
@@ -53,10 +57,12 @@ def visualize(mask_truth, mask_predicted):
     Image.fromarray(img).show()
 
 
-def pred_to_masks(masks):
-    en_masks = masks[0]
-    lt_masks = masks[1]
-    return en_masks > 0.3, lt_masks > 0.3
+def pred_to_masks(seg, det):
+    en_seg, lt_seg = seg[0]
+    en_det, lt_det = det[0]
+    en_seg[en_det > 0.5] = 0
+    lt_seg[lt_det > 0.5] = 0
+    return en_seg > 0.45, lt_seg > 0.45
 
 
 def score(en_truth, en_prediction, lt_truth, lt_prediction):
@@ -80,9 +86,9 @@ def eval(model, val_loader):
         tot_score = 0.0
         for batch in val_loader:
             img, en_truth, lt_truth = [x.to(device) for x in batch[1:]]
-            pred = model(img)
-            loss_total += loss_function(en_truth, lt_truth, pred)
-            en_prediction, lt_prediction = pred_to_masks(pred)
+            seg, det = model(img)
+            loss_total += loss_function(en_truth, lt_truth, seg, det)
+            en_prediction, lt_prediction = pred_to_masks(seg, det)
             tot_score += score(en_truth, en_prediction, lt_truth, lt_prediction)
             # visualize(lt_truth[0], lt_prediction[0])
         print(f"Eval loss: {loss_total / len(val_loader)}, score: {tot_score}")
@@ -103,7 +109,7 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters())
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.2, max_lr=1e-3)
+        optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
 
     for t in range(num_epochs):
         b = 0
@@ -116,8 +122,8 @@ if __name__ == '__main__':
             names = batch[0]
             img, en_truth, lt_truth = [x.to(device) for x in batch[1:]]
             optimizer.zero_grad()
-            pred = model(img)
-            loss = loss_function(en_truth, lt_truth, pred)
+            seg, det = model(img)
+            loss = loss_function(en_truth, lt_truth, seg, det)
             loss.backward()
             optimizer.step()
             scheduler.step()
