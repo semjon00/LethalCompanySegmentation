@@ -30,7 +30,7 @@ class LethalDataset(Dataset):
 
     def __getitem__(self, idx):
         def transform(img):
-            return einops.rearrange(torch.asarray(numpy.array(img), dtype=torch.float), 'h w c -> c h w') / 255.0
+            return einops.rearrange(torch.asarray(numpy.array(img), dtype=torch.float), 'h w c -> c h w') / 255.0 - 0.5
 
         name = self.image_files[idx]
         with Image.open(self.root_dir / SCREENSHOTS_DIR / name) as img:

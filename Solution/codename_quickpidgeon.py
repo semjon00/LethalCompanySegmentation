@@ -17,9 +17,9 @@ class QuickPidgeon(nn.Module):
         def spawn_conv(n_from, n_to):
             return nn.Sequential(
                 nn.Conv2d(n_from, n_to, kernel_size=3, padding='same'),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Conv2d(n_to, n_to, kernel_size=3, padding='same'),
-                nn.GELU(),
+                nn.ReLU(),
             )
 
         path_downward = [num_channels, 16, 32, 64, 128, 256]
@@ -39,9 +39,9 @@ class QuickPidgeon(nn.Module):
 
         self.enabling_classifier = nn.Sequential(
             nn.Linear(17 * 27 * 8, 64),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(64, 64),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(64, 2),
             nn.Sigmoid(),
         )

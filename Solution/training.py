@@ -1,8 +1,10 @@
+import sys
 import einops
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import LinearLR
 from torch.utils.data import DataLoader
+import datetime
 import time
 
 from dataset import LethalDataset, IMAGE_HEIGHT, IMAGE_WIDTH
@@ -61,8 +63,8 @@ def visualize(mask_truth, mask_predicted):
 def pred_to_masks(seg, det):
     en_seg, lt_seg = seg
     en_det, lt_det = det
-    en_seg[en_det > 0.5] = 0
-    lt_seg[lt_det > 0.5] = 0
+    en_seg[en_det < 0.5] = 0
+    lt_seg[lt_det < 0.5] = 0
     return en_seg > 0.45, lt_seg > 0.45
 
 
@@ -81,10 +83,11 @@ def score(en_truth, en_prediction, lt_truth, lt_prediction):
 
 
 def eval(model, val_loader):
-    # TODO: bad
     with torch.no_grad():
         loss_total = 0.0
         tot_score = 0.0
+        print(f'== {datetime.datetime.now()} ==')
+        print('Eval ', end='')
         for batch in val_loader:
             img, en_truth, lt_truth = [x.to(device) for x in batch[1:]]
             seg, det = model(img)
@@ -92,15 +95,25 @@ def eval(model, val_loader):
             en_prediction, lt_prediction = pred_to_masks(seg, det)
             tot_score += score(en_truth, en_prediction, lt_truth, lt_prediction)
             # visualize(lt_truth[0], lt_prediction[0])
-        print(f"Eval loss: {loss_total / len(val_loader)}, score: {tot_score}")
+        print(f"loss: {loss_total / len(val_loader)}, score: {tot_score}")
+
+
+def get_model():
+    for param in sys.argv[1:]:
+        if param.endswith('.pt'):
+            print(f'Continuing from {param}')
+            return torch.load(param)
+    from codename_surrenderedfox import SurrenderedFox as SelectedModel
+    print(f'Training new')
+    model = SelectedModel().to(device)
+    return model
 
 
 if __name__ == '__main__':
     batch_size = 8
     num_epochs = 3
 
-    from codename_quickpidgeon import QuickPidgeon as SelectedModel
-    model = SelectedModel().to(device)
+    model = get_model()
     describe(model, (batch_size, 3, IMAGE_HEIGHT, IMAGE_WIDTH))
 
     train_dataset = LethalDataset('../data/train', 0, 96)
@@ -109,14 +122,14 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters())
-    scheduler = LinearLR(optimizer, start_factor=1e-5, end_factor=3e-4, total_iters=20)
+    scheduler = LinearLR(optimizer, start_factor=1e-4, end_factor=9e-4, total_iters=20)
     #scheduler = torch.optim.lr_scheduler.OneCycleLR(
     #    optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
 
     for t in range(num_epochs):
         b = 0
         for batch in train_loader:
-            if b % max(1, len(train_loader) // 20) == 0:
+            if b % max(1, len(train_loader) // 10) == 0:
                 eval(model, val_loader)
                 print(f'Epoch {t}/{num_epochs}, batch {b} / {len(train_loader)}')
             b += 1
