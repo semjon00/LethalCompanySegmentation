@@ -1,6 +1,7 @@
 import einops
 import torch
 from torch import nn
+from torch.optim.lr_scheduler import LinearLR
 from torch.utils.data import DataLoader
 import time
 
@@ -108,8 +109,9 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters())
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
+    scheduler = LinearLR(optimizer, start_factor=1e-5, end_factor=3e-4, total_iters=20)
+    #scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #    optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
 
     for t in range(num_epochs):
         b = 0

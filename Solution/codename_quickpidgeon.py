@@ -51,14 +51,12 @@ class QuickPidgeon(nn.Module):
     def forward(self, x):
         x = F.pad(x, (0, 20, 0, 24, 0, 0, 0, 0))
         residual = []
-
         for i in range(len(self.conv_down)):
             x = self.conv_down[i](x)
             residual += [x]
             x = self.maxpool(x)
 
         enabling = self.enabling_classifier(einops.rearrange(x[..., :8, :, :], 'b c h w -> b (c h w)'))
-        enabling = einops.rearrange(enabling, 'b c -> c b')
 
         x = residual[-1].new_empty([residual[-1].shape[i] if i != 1 else 0 for i in range(len(residual[-1].shape))])
         for i in range(len(self.conv_up)):
@@ -67,6 +65,8 @@ class QuickPidgeon(nn.Module):
                 x = self.upsample(x)
 
         x = self.sigmoid(self.classifier(x))
-        x = einops.rearrange(x, 'b c h w -> c b h w')
         x = x[:, :, :-24, :-20]
+
+        x = einops.rearrange(x, 'b c h w -> c b h w')
+        enabling = einops.rearrange(enabling, 'b c -> c b')
         return x, enabling
