@@ -2,6 +2,7 @@ import einops
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+import time
 
 from dataset import LethalDataset, IMAGE_HEIGHT, IMAGE_WIDTH
 
@@ -22,7 +23,8 @@ def loss_function(en_truth, lt_truth, prediction):
     def half_loss_function(truth, prediction):
         return bce_loss(prediction, truth)
     en_prediction, lt_prediction = prediction
-    return 0.75 * half_loss_function(en_truth, en_prediction) + 0.25 * half_loss_function(lt_truth, lt_prediction)
+    lt_k = 0.5
+    return (1 - lt_k) * half_loss_function(en_truth, en_prediction) + lt_k * half_loss_function(lt_truth, lt_prediction)
 
 
 # def predict(model, test_loader):
@@ -64,8 +66,8 @@ def score(en_truth, en_prediction, lt_truth, lt_prediction):
         union = torch.where(union < 10, torch.tensor(0), union)
         iou = (intersection + 1e-6) / (union + 1e-6)  # Adding epsilon to avoid division by zero
         return iou
-    en_importance = (20 - 1) * torch.any(en_truth, dim=(-1, -2)) + 1
-    lt_importance = (8 - 1) * torch.any(lt_truth, dim=(-1, -2)) + 1
+    en_importance = (20 - 1) * torch.any(torch.any(en_truth, dim=-1), dim=-1) + 1
+    lt_importance = (8 - 1) * torch.any(torch.any(lt_truth, dim=-1), dim=-1) + 1
     en_iou = compute_iou(en_prediction, en_truth > 0.5)
     lt_iou = compute_iou(lt_prediction, lt_truth > 0.5)
     return sum(en_importance * en_iou) + sum(lt_importance * lt_iou)
@@ -88,7 +90,7 @@ def eval(model, val_loader):
 
 if __name__ == '__main__':
     batch_size = 8
-    num_epochs = 5
+    num_epochs = 3
 
     from codename_quickpidgeon import QuickPidgeon as SelectedModel
     model = SelectedModel().to(device)
@@ -101,14 +103,14 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters())
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.3, max_lr=1e-3)
+        optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.2, max_lr=1e-3)
 
     for t in range(num_epochs):
         b = 0
         for batch in train_loader:
-            if b % (len(train_loader) // 20) == 0:
+            if b % max(1, len(train_loader) // 20) == 0:
                 eval(model, val_loader)
-            print(f'Epoch {t}/{num_epochs}, batch {b} / {len(train_loader)}')
+                print(f'Epoch {t}/{num_epochs}, batch {b} / {len(train_loader)}')
             b += 1
 
             names = batch[0]
@@ -119,8 +121,6 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             scheduler.step()
+        print(f'Saving after epoch {t}')
+        torch.save(model, f'./model_{int(time.time())}.pt')
     eval(model, val_loader)
-
-    import time
-    torch.save(model, f'./model_{int(time.time())}.pt')
-    # TODO: saving somewhere here
