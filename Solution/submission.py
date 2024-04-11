@@ -28,9 +28,7 @@ with torch.inference_mode():
     for batch in loader:
         i += 1
         if i % 10 == 0:
-            print('.', end='')
-            if i % 100 == 0:
-                print('|')
+            print(f'{i}')
         name, img = batch[0], batch[1].to(device)
         seg, det = model(img)
         en_prediction, lt_prediction = pred_to_masks(seg, det)
@@ -43,7 +41,7 @@ with torch.inference_mode():
 submission = pd.DataFrame(
     {'img_id': submission_df['ImageID'], 'enemy_rle': submission_df['RleMonsters'], 'loot_rle': submission_df['RleLoot']},
     columns=['img_id', 'enemy_rle', 'loot_rle'])
-submission.to_csv(f'submission_{datetime.now()}.txt', index=False)
+submission.to_csv(f'submission_{str(datetime.now()).replace(" ", "")}.txt', index=False)
 print('End')
 
 
