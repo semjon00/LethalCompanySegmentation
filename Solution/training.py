@@ -1,3 +1,4 @@
+import os
 import sys
 import einops
 import torch
@@ -28,7 +29,7 @@ def describe(model, shape):
 
 def loss_function(en_truth, lt_truth, seg, det):
     def half_loss_function(truth, prediction, detection):
-        return bce_loss(prediction, truth) + bce_loss(detection, torch_2d_any(truth).float())
+        return 0.25 * bce_loss(prediction, truth) + 0.25 * bce_loss(detection, torch_2d_any(truth).float())
     en_seg, lt_seg = seg
     en_det, lt_det = det
     return half_loss_function(en_truth, en_seg, en_det) + half_loss_function(lt_truth, lt_seg, lt_det)
@@ -48,13 +49,15 @@ def loss_function(en_truth, lt_truth, seg, det):
 #     return result
 
 
-def visualize(mask_truth, mask_predicted):
+def visualize(first, second=None):
     from PIL import Image
     import numpy
+    if second is None:
+        second = first
     img = torch.cat((
-        mask_truth.unsqueeze(0),
-        mask_predicted.unsqueeze(0),
-        mask_predicted.unsqueeze(0) > 0.5), dim=0) * 253
+        first.unsqueeze(0),
+        second.unsqueeze(0),
+        second.unsqueeze(0) > 0.5), dim=0) * 253
     img = einops.rearrange(img, 'c h w -> h w c')
     img = img.cpu().numpy().astype(numpy.uint8)
     Image.fromarray(img).show()
@@ -103,6 +106,9 @@ def get_model():
         if param.endswith('.pt'):
             print(f'Continuing from {param}')
             return torch.load(param)
+    if 'cont.pt' in os.listdir('.'):
+        print(f'Continuing from cont.pt')
+        return torch.load('cont.pt')
     from codename_bravesnake import BraveSnake as SelectedModel
     print(f'Training new')
     model = SelectedModel().to(device)
@@ -111,7 +117,7 @@ def get_model():
 
 
 if __name__ == '__main__':
-    batch_size = 16
+    batch_size = 32
     num_epochs = 10
 
     model = get_model()
@@ -123,7 +129,7 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters())
-    scheduler = LinearLR(optimizer, start_factor=0.5e-4, end_factor=1.5e-4, total_iters=20)
+    scheduler = LinearLR(optimizer, start_factor=0.5e-4, end_factor=3e-4, total_iters=20)
     #scheduler = torch.optim.lr_scheduler.OneCycleLR(
     #    optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
 
