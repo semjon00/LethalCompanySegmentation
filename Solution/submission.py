@@ -2,16 +2,14 @@ import base64
 import sys
 import zlib
 from datetime import datetime
-
 import numpy as np
 import pandas as pd
-
 import torch
 from torch.utils.data import DataLoader
-
-from Solution.dataset import LethalDataset
-from Solution.training import pred_to_masks
 from pycocotools import mask as coco_mask
+
+from dataset import LethalDataset
+from training import pred_to_masks
 
 def encode_mask(mask: np.ndarray):
     rle = coco_mask.encode(np.asfortranarray(mask))["counts"]
