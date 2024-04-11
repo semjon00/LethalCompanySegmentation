@@ -22,7 +22,7 @@ dataset = LethalDataset('../data/test', 96, 100)
 loader = DataLoader(dataset, batch_size=1, shuffle=True)  # !=1 is not supported
 
 submission_df = pd.DataFrame(columns=['ImageID', 'RleMonsters', 'RleLoot'])
-model = torch.load(sys.argv[1])
+model = torch.load(sys.argv[1]).to(device)
 with torch.inference_mode():
     i = 0
     for batch in loader:
@@ -35,8 +35,8 @@ with torch.inference_mode():
         seg, det = model(img)
         en_prediction, lt_prediction = pred_to_masks(seg, det)
 
-        en_encoded = encode_mask(en_prediction[0])[1]
-        lt_encoded = encode_mask(lt_prediction[0])[1]
+        en_encoded = encode_mask(en_prediction[0].detach().cpu())[1]
+        lt_encoded = encode_mask(lt_prediction[0].detach().cpu())[1]
         submission_df.loc[len(submission_df.index)] = [name, en_encoded, lt_encoded]
 
 
