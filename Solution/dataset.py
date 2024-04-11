@@ -31,7 +31,9 @@ class LethalDataset(Dataset):
 
     def __getitem__(self, idx):
         def transform(img):
-            return einops.rearrange(torch.asarray(numpy.array(img), dtype=torch.float), 'h w c -> c h w') / 255.0 - 0.5
+            return einops.rearrange(torch.asarray(numpy.array(img), dtype=torch.float), 'h w c -> c h w') / 255.0
+        def mask_transform(mask_img):
+            return torch.asarray(numpy.array(mask_img), dtype=torch.float) / 255.0
 
         name = self.image_files[idx]
         with Image.open(self.root_dir / SCREENSHOTS_DIR / name) as img:
@@ -39,6 +41,4 @@ class LethalDataset(Dataset):
                 return name, transform(img)
             with Image.open(self.root_dir / MASKS_ENEMIES_DIR / name) as mask_en:
                 with Image.open(self.root_dir / MASKS_LOOT_DIR / name) as mask_lt:
-                    return name, transform(img), \
-                        torch.asarray(numpy.array(mask_en), dtype=torch.float) / 255.0, \
-                        torch.asarray(numpy.array(mask_lt), dtype=torch.float) / 255.0
+                    return name, transform(img), mask_transform(mask_en), mask_transform(mask_lt)

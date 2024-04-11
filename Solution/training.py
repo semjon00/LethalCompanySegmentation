@@ -3,7 +3,6 @@ import sys
 import einops
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import LinearLR
 from torch.utils.data import DataLoader
 import datetime
 import time
@@ -28,25 +27,10 @@ def describe(model, shape):
 
 
 def loss_function(en_truth, lt_truth, seg, det):
-    def half_loss_function(truth, prediction, detection):
-        return 0.25 * bce_loss(prediction, truth) + 0.25 * bce_loss(detection, torch_2d_any(truth).float())
     en_seg, lt_seg = seg
     en_det, lt_det = det
-    return half_loss_function(en_truth, en_seg, en_det) + half_loss_function(lt_truth, lt_seg, lt_det)
-
-
-# def predict(model, test_loader):
-#     threshold = 0.5
-#     result = []
-#     with torch.no_grad():
-#         for batch in test_loader:
-#             name, img = batch
-#             en_prediction, lt_prediction = model(img)
-#             en_prediction = en_prediction > threshold
-#             lt_prediction = lt_prediction > threshold
-#             for i in range(len(pred)):
-#                 result.append((name[i], en_prediction[i], lt_prediction[i]))
-#     return result
+    return 0.25 * bce_loss(en_seg, en_truth) + 0.25 * bce_loss(en_det, torch_2d_any(en_truth).float()) + \
+           0.25 * bce_loss(lt_seg, lt_truth) + 0.25 * bce_loss(lt_det, torch_2d_any(lt_truth).float())
 
 
 def visualize(first, second=None):
@@ -78,6 +62,7 @@ def score(en_truth, en_prediction, lt_truth, lt_prediction):
         union = torch.where(union < 10, torch.tensor(0), union)
         iou = (intersection + 1e-6) / (union + 1e-6)  # Adding epsilon to avoid division by zero
         return iou
+
     en_importance = (20 - 1) * torch.any(torch.any(en_truth, dim=-1), dim=-1) + 1
     lt_importance = (8 - 1) * torch.any(torch.any(lt_truth, dim=-1), dim=-1) + 1
     en_iou = compute_iou(en_prediction, en_truth > 0.5)
@@ -86,7 +71,7 @@ def score(en_truth, en_prediction, lt_truth, lt_prediction):
 
 
 def eval(model, val_loader):
-    with torch.no_grad():
+    with torch.inference_mode():
         loss_total = 0.0
         tot_score = 0.0
         print(f'== {datetime.datetime.now()} ==')
@@ -128,11 +113,7 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
-    optimizer = torch.optim.Adam(model.parameters())
-    scheduler = LinearLR(optimizer, start_factor=0.5e-4, end_factor=3e-4, total_iters=20)
-    #scheduler = torch.optim.lr_scheduler.OneCycleLR(
-    #    optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
-
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     for t in range(num_epochs):
         b = 0
         for batch in train_loader:
@@ -148,7 +129,6 @@ if __name__ == '__main__':
             loss = loss_function(en_truth, lt_truth, seg, det)
             loss.backward()
             optimizer.step()
-            scheduler.step()
         print(f'Saving after epoch {t}')
         torch.save(model, f'./model_{int(time.time())}.pt')
     eval(model, val_loader)

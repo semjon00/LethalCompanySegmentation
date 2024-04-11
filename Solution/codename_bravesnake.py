@@ -9,12 +9,7 @@ import torch.nn.functional as F
 class BraveSnake(nn.Module):
     def __init__(self):
         super().__init__()
-        state = torch.load('BraveSnakeBase.pt', map_location=torch.device('cpu'))
-        segment_model = smp.Unet(encoder_name="resnet34", encoder_weights="imagenet", in_channels=3, classes=4)
-        del state['segmentation_head.0.weight']
-        del state['segmentation_head.0.bias']
-        segment_model.load_state_dict(state, strict=False)
-        self.model = segment_model
+        self.model = smp.Unet(encoder_name="resnet34", encoder_weights="imagenet", in_channels=3, classes=4)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
