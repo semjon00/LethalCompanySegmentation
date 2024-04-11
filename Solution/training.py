@@ -103,15 +103,16 @@ def get_model():
         if param.endswith('.pt'):
             print(f'Continuing from {param}')
             return torch.load(param)
-    from codename_surrenderedfox import SurrenderedFox as SelectedModel
+    from codename_bravesnake import BraveSnake as SelectedModel
     print(f'Training new')
     model = SelectedModel().to(device)
+    model.train()
     return model
 
 
 if __name__ == '__main__':
-    batch_size = 8
-    num_epochs = 3
+    batch_size = 16
+    num_epochs = 10
 
     model = get_model()
     describe(model, (batch_size, 3, IMAGE_HEIGHT, IMAGE_WIDTH))
@@ -122,7 +123,7 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters())
-    scheduler = LinearLR(optimizer, start_factor=1e-4, end_factor=9e-4, total_iters=20)
+    scheduler = LinearLR(optimizer, start_factor=0.5e-4, end_factor=1.5e-4, total_iters=20)
     #scheduler = torch.optim.lr_scheduler.OneCycleLR(
     #    optimizer, total_steps=num_epochs * len(train_loader), pct_start=0.1, max_lr=1e-3)
 

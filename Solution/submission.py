@@ -11,6 +11,7 @@ from pycocotools import mask as coco_mask
 from dataset import LethalDataset
 from training import pred_to_masks
 
+
 def encode_mask(mask: np.ndarray):
     rle = coco_mask.encode(np.asfortranarray(mask))["counts"]
     return base64.b64encode(zlib.compress(rle)).decode('utf-8')
