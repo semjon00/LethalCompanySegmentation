@@ -13,6 +13,7 @@ cd /gpfs/space/home/semjon00/LethalCompanySegmentation/Solution
 
 module load any/python/3.8.3-conda
 conda activate transformers-course
+pip install pycocotools
 
 srun python -u submission.py themodel.pt
 # sbatch hpc_submission.sh
