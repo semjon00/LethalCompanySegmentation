@@ -1,6 +1,5 @@
 data
 .idea
 **/*.pt
+**/*.log
 **/submission_*.csv
-**/output.log
-**/error.log
