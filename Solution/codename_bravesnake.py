@@ -1,4 +1,3 @@
-from torch import nn
 import segmentation_models_pytorch as smp
 import einops
 import torch
