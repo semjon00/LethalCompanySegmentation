@@ -20,7 +20,8 @@ class LethalDataset(Dataset):
         self.root_dir = pathlib.Path(root_dir)
         self.image_files = sorted(os.listdir(self.root_dir / 'screenshots'))
         random.seed = seed
-        random.shuffle(self.image_files)
+        if not 'test' in str(self.root_dir):
+            random.shuffle(self.image_files)
         self.image_files = self.image_files[
                            len(self.image_files) * percent_from // 100:
                            len(self.image_files) * percent_to // 100]

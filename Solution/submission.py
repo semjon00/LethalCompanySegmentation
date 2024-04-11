@@ -18,7 +18,7 @@ def encode_mask(mask: np.ndarray):
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using {} device".format(device))
-dataset = LethalDataset('../data/test', 96, 100)
+dataset = LethalDataset('../data/test')
 loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
 submission_df = pd.DataFrame(columns=['ImageID', 'RleMonsters', 'RleLoot'])
