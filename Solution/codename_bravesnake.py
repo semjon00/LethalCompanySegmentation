@@ -8,7 +8,7 @@ import torch.nn.functional as F
 class BraveSnake(nn.Module):
     def __init__(self):
         super().__init__()
-        self.model = smp.Unet(encoder_name="resnet34", encoder_weights="imagenet", in_channels=3, classes=4)
+        self.model = smp.Unet(encoder_name="efficientnet-b4", encoder_weights="advprop", in_channels=3, classes=4)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=lts_training
+#SBATCH --job-name=lts_submission
 #SBATCH --time=02:00:00
 #SBATCH --output=output.log
 #SBATCH --error=error.log

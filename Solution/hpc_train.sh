@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=lts_training
-#SBATCH --time=05:00:00
+#SBATCH --time=15:00:00
 #SBATCH --output=output.log
 #SBATCH --error=error.log
 #SBATCH--mail-user=semjon00@ut.ee

@@ -34,8 +34,8 @@ def loss_function(en_truth, lt_truth, seg, det):
 
     en_seg, lt_seg = seg
     en_det, lt_det = det
-    return 0.35 * bce_loss(en_seg, en_truth) + 0.15 * bce_loss(en_det, torch_2d_any(en_truth).float()) + \
-           0.35 * bce_loss(lt_seg, lt_truth) + 0.15 * bce_loss(lt_det, torch_2d_any(lt_truth).float())
+    return 0.4 * bce_loss(en_seg, en_truth) + 0.1 * bce_loss(en_det, torch_2d_any(en_truth).float()) + \
+           0.4 * bce_loss(lt_seg, lt_truth) + 0.1 * bce_loss(lt_det, torch_2d_any(lt_truth).float())
 
 
 def eval(model, val_loader):
@@ -69,7 +69,7 @@ def get_model():
 
 if __name__ == '__main__':
     batch_size = 32
-    num_epochs = 10
+    num_epochs = 30
 
     model = get_model()
     describe(model, (batch_size, 3, IMAGE_HEIGHT, IMAGE_WIDTH))
@@ -79,22 +79,30 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, len(train_loader) * max(1, num_epochs - 5), eta_min=2e-5)
+    train_loss = -1
+    train_loss_tot = 1
     for t in range(num_epochs):
         b = 0
         for batch in train_loader:
             if b % max(1, len(train_loader) // 10) == 0:
                 log(f'Epoch {t}/{num_epochs}, batch {b} / {len(train_loader)}:')
                 eval(model, val_loader)
-            b += 1
-
+                log(f'Train loss: {train_loss / train_loss_tot}')
+                train_loss, train_loss_tot = 0.0, 0
             names = batch[0]
             img, en_truth, lt_truth = [x.to(device) for x in batch[1:]]
             optimizer.zero_grad()
             seg, det = model(img)
             loss = loss_function(en_truth, lt_truth, seg, det)
             loss.backward()
+            train_loss += float(loss)
+            train_loss_tot += 1
             optimizer.step()
+            scheduler.step()
+            b += 1
         log(f'Saving after epoch {t}')
         torch.save(model, f'./model_{int(time.time())}.pt')
     eval(model, val_loader)
