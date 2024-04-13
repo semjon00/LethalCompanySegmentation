@@ -60,7 +60,7 @@ def get_model():
     if 'cont.pt' in os.listdir('.'):
         log(f'Continuing from cont.pt')
         return torch.load('cont.pt')
-    from codename_bravesnake import BraveSnake as SelectedModel
+    from codename_insaneboa import InsaneBoa as SelectedModel
     log(f'Training new {SelectedModel}')
     model = SelectedModel().to(device)
     model.train()
@@ -68,8 +68,8 @@ def get_model():
 
 
 if __name__ == '__main__':
-    batch_size = 32
-    num_epochs = 30
+    batch_size = 4
+    num_epochs = 3
 
     model = get_model()
     describe(model, (batch_size, 3, IMAGE_HEIGHT, IMAGE_WIDTH))
@@ -79,9 +79,10 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    parameters = model.trainable_parameters() if hasattr(model, 'trainable_parameters') else model.parameters()
+    optimizer = torch.optim.Adam(parameters, lr=2e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, len(train_loader) * max(1, num_epochs - 5), eta_min=2e-5)
+        optimizer, len(train_loader) * max(1, num_epochs - 1), eta_min=2e-5)
     train_loss = -1
     train_loss_tot = 1
     for t in range(num_epochs):
