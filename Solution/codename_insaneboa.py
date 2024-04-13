@@ -39,6 +39,3 @@ class InsaneBoa(nn.Module):
         seg = x[..., :2, :, :]
         det = torch.mean(torch.mean(x[..., 2:4, :, :], dim=-1), dim=-1)
         return seg.permute((1, 0, 2, 3)), det.permute((1, 0))
-
-    def trainable_parameters(self):
-        return self.head.parameters()
