@@ -89,6 +89,19 @@ def create_submission():
             print('.', end='')
             name, img = batch[0], batch[1].to(device)
             seg, det = model(img)
+
+            # # Very lazy visualizer
+            # from PIL import Image
+            # img_grayscale = einops.repeat(torch.mean(img, dim=1), 'a b c -> a 3 b c')
+            # for i in range(len(seg[0])):
+            #     tg = img_grayscale[i].clone()
+            #     tg[0] = tg[0] + seg[0][i] * (det[0][i] > 0.5)
+            #     tg[1] = tg[1] + seg[1][i] * (det[1][i] > 0.5)
+            #     tg[2] = tg[2]
+            #     tg = tg.clamp(0, 1.0)
+            #     tg = Image.fromarray(einops.rearrange(255.0 * tg, 'c a b -> a b c').cpu().numpy().astype(np.uint8))
+            #     tg.convert('RGB').save('savedir/' + name[i] + '-0' '.png')
+
             en_prediction, lt_prediction = pred_to_masks(seg, det)
             for i in range(len(name)):
                 en_encoded = encode_mask(en_prediction[i].detach().cpu())
